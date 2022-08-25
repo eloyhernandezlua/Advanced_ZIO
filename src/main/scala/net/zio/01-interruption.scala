@@ -264,8 +264,8 @@ object UninterruptibleMask extends ZIOSpecDefault {
        */
       test("overly interruptible") {
         def doWork[A](queue: Queue[A], worker: A => UIO[Any]) =
-          ZIO.uninterruptible {
-            queue.take.flatMap(a => ZIO.interruptible(worker(a)))
+          ZIO.uninterruptibleMask { restore =>
+            queue.take.flatMap(a => restore(worker(a)))
           }
 
         def worker(database: Ref[Chunk[Int]]): Int => UIO[Any] = {
@@ -286,7 +286,7 @@ object UninterruptibleMask extends ZIOSpecDefault {
           _        <- fiber.interrupt
           data     <- database.get
         } yield assertTrue(data.length == 5)
-      } @@ ignore
+      }
     }
 }
 
@@ -336,7 +336,9 @@ object Graduation extends ZIOSpecDefault {
           def acquireReleaseWith[R, E, A, B](
             acquire: ZIO[R, E, A]
           )(release: A => UIO[Any])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
-            acquire.flatMap(a => use(a) <* release(a))
+            ZIO.uninterruptibleMask{ restore =>
+              acquire.flatMap(a => restore(use(a)).catchAllCause(cause => release(a) *> ZIO.refailCause(cause)))
+            }
 
           for {
             latch   <- Promise.make[Nothing, Unit]

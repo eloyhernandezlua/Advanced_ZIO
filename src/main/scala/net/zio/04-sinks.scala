@@ -30,7 +30,7 @@ object Constructors extends ZIOSpecDefault {
         val stream = ZStream(1, 2, 3, 4)
 
         for {
-          size <- stream.runSum
+          size <- stream.run(ZSink.count)
         } yield assertTrue(size.toInt == 4)
       } @@ ignore +
         /**
@@ -43,7 +43,7 @@ object Constructors extends ZIOSpecDefault {
           val stream = ZStream(1, 2, 3, 4)
 
           for {
-            two <- stream.runCollect
+            two <- stream.run(ZSink.take(2))
           } yield assertTrue(two == Chunk(1, 2))
         } @@ ignore +
         /**
@@ -58,7 +58,7 @@ object Constructors extends ZIOSpecDefault {
 
           for {
             ref <- Ref.make(0)
-            _   <- stream.runDrain
+            _   <- stream.run(ZSink.foreach(v =>ref.update(_ + v)))
             v   <- ref.get
           } yield assertTrue(v == 10)
         } @@ ignore +
@@ -73,7 +73,7 @@ object Constructors extends ZIOSpecDefault {
           val stream = ZStream(1, 2, 3, 4)
 
           for {
-            value <- stream.runSum
+            value <- stream.run(ZSink.foldLeft(1)(_ * _))
           } yield assertTrue(value == 24)
         } @@ ignore
     }
@@ -96,7 +96,7 @@ object Operators extends ZIOSpecDefault {
         val stream = ZStream(1, 2, 3, 4)
 
         for {
-          value <- stream.runCount
+          value <- stream.run(sink)
         } yield assertTrue(value == 4)
       } @@ ignore +
         /**
