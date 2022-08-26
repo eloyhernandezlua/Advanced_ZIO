@@ -13,12 +13,12 @@ package zio.advancedzio.config
 
 import zio._
 import zio.internal.Platform
-
 import zio.test._
 import zio.test.TestAspect._
 
 import scala.concurrent.ExecutionContext
 import java.util.concurrent.atomic.AtomicReference
+import scala.sys.process.processInternal.IOException
 
 object RuntimeSpec extends ZIOSpecDefault {
   implicit def unsafe: Unsafe = null.asInstanceOf[zio.Unsafe]
@@ -51,6 +51,8 @@ object RuntimeSpec extends ZIOSpecDefault {
           } yield integer.get[Int] * 2
 
         val runtime = Runtime(ZEnvironment(19), FiberRefs.empty, RuntimeFlags.default)
+
+        runtime.unsafe.run(Console.printLine("23"))
 
         assertTrue(runtime.unsafe.run(effect) == Exit.succeed(42))
       } @@ ignore +
@@ -141,9 +143,11 @@ object RuntimeSpec extends ZIOSpecDefault {
 
           val runtime = Runtime(ZEnvironment.empty, FiberRefs.empty, RuntimeFlags.default)
 
-          runtime.unsafe.run(ZIO.yieldNow *> ZIO.unit)
+          runtime.unsafe.run(ZIO.yieldNow *> ZIO.unit.provide{
+            Runtime.setExecutor(executor)
+          })
 
-          assertTrue(ranOnEC.get == true)
+          assertTrue(ranOnEC.get)
         } @@ ignore +
         /**
          * EXERCISE
@@ -181,7 +185,9 @@ object RuntimeSpec extends ZIOSpecDefault {
           }
 
           Runtime.default.unsafe.run {
-            ZIO.succeed(throw ioException) // HERE
+            ZIO.succeed(throw ioException).provide{
+              Runtime.addFatal(classOf[IOException])
+            }
           }
 
           assertTrue(fatalRef.get.get == ioException)
@@ -230,7 +236,9 @@ object RuntimeSpec extends ZIOSpecDefault {
         }
 
         try Runtime.default.unsafe.run {
-          effect // HERE
+          effect.provide{
+            Runtime.addSupervisor(supervisor)
+          }
         } catch { case _: Throwable => () }
 
         assertTrue(succeeded.get)

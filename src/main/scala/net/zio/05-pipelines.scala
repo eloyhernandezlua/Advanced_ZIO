@@ -28,7 +28,7 @@ object Introduction extends ZIOSpecDefault {
         val trans  = ZPipeline.take[Int](5)
 
         for {
-          chunks <- stream.runCollect
+          chunks <- (stream >>> trans).runCollect
         } yield assertTrue(chunks.length == 5)
       } @@ ignore +
         /**
@@ -39,10 +39,10 @@ object Introduction extends ZIOSpecDefault {
          */
         test("transduce") {
           val stream = ZStream.range(1, 100)
-          val trans  = ZPipeline.take[Int](10)
+          val trans  = ZPipeline.map[Int, String](int => int.toString)
 
           for {
-            values <- stream.runCollect
+            values <- (stream >>> trans).runCollect
           } yield assertTrue(values.length == 10)
         } @@ ignore
     }
@@ -62,7 +62,7 @@ object Constructors extends ZIOSpecDefault {
         val stream = ZStream("a\nb\nc\n", "d\ne")
 
         for {
-          values <- (stream).runCollect
+          values <- (stream >>> ZPipeline.splitLines).runCollect
         } yield assertTrue(values == Chunk("a", "b", "c", "d", "e"))
       } @@ ignore +
         /**
@@ -75,7 +75,7 @@ object Constructors extends ZIOSpecDefault {
           val stream = ZStream("name,age,add", "ress,dob,gender")
 
           for {
-            values <- (stream).runCollect
+            values <- (stream >>> ZPipeline.splitOn(",")).runCollect
           } yield assertTrue(values == Chunk("name", "age", "address", "dob", "gender"))
         } @@ ignore +
         /**
@@ -91,7 +91,7 @@ object Constructors extends ZIOSpecDefault {
           val stream = ZStream.fromChunks(Chunk.fromArray(bytes1), Chunk.fromArray(bytes2))
 
           def decodedStream: ZStream[Any, Nothing, String] =
-            stream >>> ???
+            stream >>> ZPipeline.utf8Decode.orDie
 
           for {
             values <- decodedStream.runCollect
@@ -105,7 +105,7 @@ object Constructors extends ZIOSpecDefault {
          */
         test("fromFunction") {
           def parseInt: ZPipeline[Any, Nothing, String, Int] =
-            ???
+            ZPipeline.map[String, Int](str => str.toInt)
 
           val stream = ZStream("1", "2", "3")
 

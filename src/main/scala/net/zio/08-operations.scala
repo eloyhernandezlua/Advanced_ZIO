@@ -30,7 +30,7 @@ object AsyncTraces extends ZIOSpecDefault {
             _ <- ZIO.fail("Uh oh!")
           } yield ()
 
-        def traces(cause: Cause[String]): List[StackTrace] = ???
+        def traces(cause: Cause[String]): List[StackTrace] = cause.traces
 
         Live.live(for {
           cause <- async.sandbox.flip
